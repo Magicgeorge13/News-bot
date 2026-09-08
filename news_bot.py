@@ -24,9 +24,11 @@ def send_telegram(text: str):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {"chat_id": TELEGRAM_CHAT_ID, "text": text, "parse_mode": "HTML"}
     try:
-        requests.post(url, json=payload, timeout=10)
+        res = requests.post(url, json=payload, timeout=10)
+        if res.status_code != 200:
+            print(f"[ERROR] Telegram API: {res.text}")
     except Exception as e:
-        print(f"[ERROR] Telegram: {e}")
+        print(f"[ERROR] Telegram Request: {e}")
 
 def clean_html(raw_html: str) -> str:
     clean_text = re.sub(r"<.*?>", "", raw_html)
@@ -42,47 +44,76 @@ def process_entry(unique_id, msg):
 def fetch_bloomberg():
     feed = feedparser.parse("https://news.google.com/rss/search?q=site:bloomberg.com+when:1h&hl=en-US&gl=US&ceid=US:en")
     for entry in reversed(feed.entries[:10]):
-        title = entry.title.rsplit(" - Bloomberg", 1)[0].strip()
+        # Καθαρισμός τίτλου και ασφαλής μορφοποίηση για το Telegram (π.χ. σύμβολα & ή <)
+        title = html.escape(entry.title.rsplit(" - Bloomberg", 1)[0].strip())
         msg = f"<b>Bloomberg</b>\n📌 {title}\n🔗 <a href='{entry.link}'>Link</a>"
         process_entry(entry.link, msg)
 
 def fetch_cnbc():
     feed = feedparser.parse("https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664")
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    
     for entry in reversed(feed.entries[:10]):
-        summary = clean_html(entry.get("summary", ""))
-        if len(summary) > 200: summary = summary[:197] + "..."
-        msg = f"<b>CNBC</b>\n📌 <b>{entry.title.strip()}</b>\n📝 <i>{summary}</i>\n🔗 <a href='{entry.link}'>Link</a>"
-        process_entry(entry.link, msg)
+        link = entry.link
+        
+        # Αν το έχουμε ήδη στείλει, προχωράμε στο επόμενο χωρίς να κάνουμε άδικα scraping
+        if link in seen_entries:
+            continue
+            
+        title = html.escape(entry.title.strip())
+        
+        try:
+            # Μπαίνει μέσα στο άρθρο για να βρει τα Key Points
+            res = requests.get(link, headers=headers, timeout=15)
+            soup = BeautifulSoup(res.text, "html.parser")
+            
+            # Ψάχνει την κλάση που βάζει το CNBC στα Key Points
+            key_points_container = soup.find(class_=re.compile("KeyPoints", re.IGNORECASE))
+            bullets = []
+            
+            if key_points_container:
+                items = key_points_container.find_all("li")
+                for item in items:
+                    safe_text = html.escape(item.get_text(strip=True))
+                    bullets.append(f"• <i>{safe_text}</i>")
+            
+            # Αν βρήκε Key Points τα ενώνει, αλλιώς βάζει την απλή περίληψη ως backup
+            if bullets:
+                key_points_text = "\n".join(bullets)
+            else:
+                summary = html.escape(clean_html(entry.get("summary", "")))
+                if len(summary) > 250: summary = summary[:247] + "..."
+                key_points_text = f"• <i>{summary}</i>"
+
+            # Μήνυμα ΧΩΡΙΣ το Link, μόνο τίτλος και Key points
+            msg = f"<b>CNBC</b>\n📌 <b>{title}</b>\n\n{key_points_text}"
+            process_entry(link, msg)
+            
+        except Exception as e:
+            print(f"[ERROR] CNBC Scraping: {e}")
 
 def fetch_capital():
     feed = feedparser.parse("https://www.capital.gr/rss")
     for entry in reversed(feed.entries[:10]):
-        msg = f"<b>Capital.gr</b>\n📌 {entry.title.strip()}\n🔗 <a href='{entry.link}'>Link</a>"
+        title = html.escape(entry.title.strip())
+        msg = f"<b>Capital.gr</b>\n📌 {title}\n🔗 <a href='{entry.link}'>Link</a>"
         process_entry(entry.link, msg)
 
 def fetch_forex_factory():
-    # Αντλούμε τα νέα απευθείας από το tab "Hot News"
     url = "https://www.forexfactory.com/news/hot"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
-    }
+    headers = {"User-Agent": "Mozilla/5.0"}
     try:
         res = requests.get(url, headers=headers, timeout=15)
         soup = BeautifulSoup(res.text, "html.parser")
         
-        # Το Forex Factory βάζει τα links των ειδήσεων σε μορφή /news/12345-titlos
-        # Ψάχνουμε όλα τα <a> tags που ταιριάζουν σε αυτό το μοτίβο
         articles = soup.find_all("a", href=re.compile(r"^/news/\d+"))
-        
-        # Παίρνουμε τα 10 πιο πρόσφατα (αφαιρώντας τα διπλότυπα links της ίδιας σελίδας)
         unique_links = {}
         for a in articles:
             link = "https://www.forexfactory.com" + a['href']
-            title = a.get_text(strip=True)
-            if title and len(title) > 10: # Αγνοούμε κενά εικονίδια
+            title = html.escape(a.get_text(strip=True))
+            if title and len(title) > 10:
                 unique_links[link] = title
                 
-        # Μετατροπή σε λίστα και αντιστροφή για να στείλει τα παλαιότερα πρώτα
         for link, title in reversed(list(unique_links.items())[:10]):
             msg = f"🔴 <b>Forex Factory (Hot News)</b>\n📌 {title}\n🔗 <a href='{link}'>Link</a>"
             process_entry(link, msg)
