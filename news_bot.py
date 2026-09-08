@@ -96,26 +96,17 @@ def fetch_cnbc():
             pass
 
 def fetch_capital():
-    # Χρήση του rss2json API που ξεπερνάει τα firewalls και μας δίνει την αυθεντική ροή
-    api_url = "https://api.rss2json.com/v1/api.json?rss_url=https://www.capital.gr/rss"
-    try:
-        res = requests.get(api_url, timeout=15)
-        data = res.json()
+    # Παράκαμψη του firewall χρησιμοποιώντας το Google News για τα νέα του Capital.gr
+    rss_url = "https://news.google.com/rss/search?q=site:capital.gr+when:1h&hl=el&gl=GR&ceid=GR:el"
+    feed = feedparser.parse(rss_url)
+    
+    for entry in reversed(feed.entries[:10]):
+        # Καθαρισμός του τίτλου από το " - Capital.gr" που προσθέτει αυτόματα το Google
+        title = entry.title.rsplit(" - Capital.gr", 1)[0].rsplit(" - capital.gr", 1)[0].strip()
+        title = html.escape(title)
         
-        if data.get("status") == "ok":
-            items = data.get("items", [])
-            # Ελέγχουμε τις 15 πιο πρόσφατες γρήγορες ειδήσεις
-            for entry in reversed(items[:15]):
-                title = html.escape(entry.get("title", "").strip())
-                link = entry.get("link", "")
-                
-                msg = f"<b>Capital.gr</b>\n📌 {title}\n🔗 <a href='{link}'>Link</a>"
-                process_entry(link, msg, "capital")
-        else:
-            print(f"[ERROR] Capital.gr API: {data.get('message')}")
-    except Exception as e:
-        print(f"[ERROR] Capital.gr: {e}")
-
+        msg = f"<b>Capital.gr</b>\n📌 {title}\n🔗 <a href='{entry.link}'>Link</a>"
+        process_entry(entry.link, msg, "capital")
 def fetch_forex_factory():
     url = "https://www.forexfactory.com/news/hot"
     headers = {"User-Agent": "Mozilla/5.0"}
