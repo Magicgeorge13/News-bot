@@ -96,17 +96,17 @@ def fetch_cnbc():
             pass
 
 def fetch_capital():
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"}
-    try:
-        res = requests.get("https://www.capital.gr/rss", headers=headers, timeout=15)
-        feed = feedparser.parse(res.content)
+    # Παράκαμψη του firewall χρησιμοποιώντας το Google News για τα νέα του Capital.gr
+    rss_url = "https://news.google.com/rss/search?q=site:capital.gr+when:1h&hl=el&gl=GR&ceid=GR:el"
+    feed = feedparser.parse(rss_url)
+    
+    for entry in reversed(feed.entries[:10]):
+        # Καθαρισμός του τίτλου από το " - Capital.gr" που προσθέτει αυτόματα το Google
+        title = entry.title.rsplit(" - Capital.gr", 1)[0].rsplit(" - capital.gr", 1)[0].strip()
+        title = html.escape(title)
         
-        for entry in reversed(feed.entries[:10]):
-            title = html.escape(entry.title.strip())
-            msg = f"<b>Capital.gr</b>\n📌 {title}\n🔗 <a href='{entry.link}'>Link</a>"
-            process_entry(entry.link, msg, "capital")
-    except Exception:
-        pass
+        msg = f"<b>Capital.gr</b>\n📌 {title}\n🔗 <a href='{entry.link}'>Link</a>"
+        process_entry(entry.link, msg, "capital")
 
 def fetch_forex_factory():
     url = "https://www.forexfactory.com/news/hot"
