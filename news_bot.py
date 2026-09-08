@@ -65,9 +65,16 @@ def fetch_bloomberg():
         process_entry(entry.link, msg, "bloomberg")
 
 def fetch_cnbc():
-    feed = feedparser.parse("https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=15839069")
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"}
     
+    try:
+        # 1. Κατεβάζουμε το RSS μεταμφιεσμένοι ως κανονικός browser
+        rss_res = requests.get("https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=15839069", headers=headers, timeout=15)
+        feed = feedparser.parse(rss_res.content)
+    except Exception as e:
+        print(f"[ERROR] CNBC RSS Fetch: {e}")
+        return
+        
     for entry in reversed(feed.entries[:15]):
         link = entry.link
         if link in seen_entries:
@@ -80,9 +87,10 @@ def fetch_cnbc():
         key_points_text = f"• <i>{summary}</i>"
         
         try:
-            res = requests.get(link, headers=headers, timeout=15)
-            if res.status_code == 200:
-                soup = BeautifulSoup(res.text, "html.parser")
+            # 2. Μπαίνουμε στο άρθρο για να βρούμε τα Key Points
+            article_res = requests.get(link, headers=headers, timeout=15)
+            if article_res.status_code == 200:
+                soup = BeautifulSoup(article_res.text, "html.parser")
                 bullets = []
                 key_points_containers = soup.find_all(class_=re.compile("KeyPoints", re.IGNORECASE))
                 
@@ -102,7 +110,6 @@ def fetch_cnbc():
 
         msg = f"<b>CNBC</b>\n📌 <b>{title}</b>\n\n{key_points_text}\n\n🔗 <a href='{link}'>Link</a>"
         process_entry(link, msg, "cnbc")
-
 def fetch_capital():
     # Παράκαμψη του firewall χρησιμοποιώντας το Google News για τα νέα του Capital.gr
     rss_url = "https://news.google.com/rss/search?q=site:capital.gr+when:1h&hl=el&gl=GR&ceid=GR:el"
