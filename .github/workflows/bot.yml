@@ -1,0 +1,38 @@
+name: News Bot Scheduler
+
+on:
+  schedule:
+    - cron: '*/30 * * * *' # Τρέχει κάθε 30 λεπτά
+  workflow_dispatch: # Σου επιτρέπει να το τρέξεις και χειροκίνητα αν θες
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Χρειάζεται άδεια για να σώζει το seen.txt
+
+    steps:
+      - name: Κατέβασμα αρχείων
+        uses: actions/checkout@v3
+
+      - name: Στήσιμο Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Εγκατάσταση εργαλείων
+        run: pip install -r requirements.txt
+
+      - name: Εκτέλεση του Bot
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python news_bot.py
+
+      - name: Αποθήκευση Μνήμης (seen.txt)
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add seen.txt
+          git commit -m "Ανανέωση μνήμης ειδήσεων" || echo "Δεν βρέθηκαν νέες ειδήσεις"
+          git push
