@@ -121,25 +121,34 @@ def fetch_capital():
         print(f"[ERROR] Capital.gr: {e}")
 
 def fetch_forex_factory():
-    url = "https://www.forexfactory.com/news/hot"
-    headers = {"User-Agent": "Mozilla/5.0"}
+    # Χρησιμοποιούμε AllOrigins Proxy με timestamp για να σπάσουμε την προσωρινή 
+    # μνήμη (cache) και το firewall του Cloudflare που μπλοκάρει το GitHub!
+    timestamp = int(time.time())
+    proxy_url = f"https://api.allorigins.win/raw?url=https://www.forexfactory.com/news/hot&_={timestamp}"
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"}
+    
     try:
-        res = requests.get(url, headers=headers, timeout=15)
+        res = requests.get(proxy_url, headers=headers, timeout=20)
         soup = BeautifulSoup(res.text, "html.parser")
         
+        # Ψάχνουμε τα links που οδηγούν στα άρθρα (/news/...)
         articles = soup.find_all("a", href=re.compile(r"^/news/\d+"))
         unique_links = {}
+        
         for a in articles:
             link = "https://www.forexfactory.com" + a['href']
             title = html.escape(a.get_text(strip=True))
-            if title and len(title) > 10:
+            
+            # Αγνοούμε κενά ή τα links που οδηγούν στα σχόλια (π.χ. "167 comments")
+            if title and len(title) > 10 and "comments" not in title.lower():
                 unique_links[link] = title
                 
         for link, title in reversed(list(unique_links.items())[:10]):
-            msg = f"🔴 <b>Forex Factory (Hot News)</b>\n📌 {title}\n🔗 <a href='{link}'>Link</a>"
+            msg = f"🔴 <b>Forex Factory (Hot News)</b>\n📌 {title}\n\n🔗 <a href='{link}'>Link</a>"
             process_entry(link, msg, "forex")
-    except Exception:
-        pass
+            
+    except Exception as e:
+        print(f"[ERROR] Forex Factory: {e}")
 
 
 # --- ΕΚΤΕΛΕΣΗ ΚΑΙ ΕΛΕΓΧΟΣ ΜΗΝΥΜΑΤΩΝ ---
@@ -161,9 +170,9 @@ fetch_capital()
 if new_counts["capital"] == 0:
     send_telegram("ℹ️ Όχι νέα σε Capital.gr")
 
-# 2. Forex Factory (Ανά 1 ώρα)
+# 2. Forex Factory (Ανά 1 ώρα = 3500 δευτερόλεπτα)
 forex_checked = False
-if current_time - timers.get("forex", 0) >= 3550:
+if current_time - timers.get("forex", 0) >= 3500:
     forex_checked = True
     fetch_forex_factory()
     timers["forex"] = current_time
