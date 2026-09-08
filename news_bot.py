@@ -125,10 +125,10 @@ def fetch_capital():
         process_entry(entry.link, msg, "capital")
 
 def fetch_forex_factory():
-    # Χρησιμοποιούμε AllOrigins Proxy με timestamp για να σπάσουμε την προσωρινή 
-    # μνήμη (cache) και το firewall του Cloudflare που μπλοκάρει το GitHub!
+    # Χτυπάμε την κεντρική σελίδα όλων των ειδήσεων μέσω proxy
     timestamp = int(time.time())
-    proxy_url = f"https://api.allorigins.win/raw?url=https://www.forexfactory.com/news/hot&_={timestamp}"
+    url = "https://www.forexfactory.com/news"
+    proxy_url = f"https://api.allorigins.win/raw?url={url}&_={timestamp}"
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"}
     
     try:
@@ -143,17 +143,17 @@ def fetch_forex_factory():
             link = "https://www.forexfactory.com" + a['href']
             title = html.escape(a.get_text(strip=True))
             
-            # Αγνοούμε κενά ή τα links που οδηγούν στα σχόλια (π.χ. "167 comments")
+            # Αγνοούμε κενά ή τα links των σχολίων
             if title and len(title) > 10 and "comments" not in title.lower():
                 unique_links[link] = title
                 
-        for link, title in reversed(list(unique_links.items())[:10]):
-            msg = f"🔴 <b>Forex Factory (Hot News)</b>\n📌 {title}\n\n🔗 <a href='{link}'>Link</a>"
+        # Ελέγχουμε τα 15 πιο πρόσφατα
+        for link, title in reversed(list(unique_links.items())[:15]):
+            msg = f"🔴 <b>Forex Factory</b>\n📌 {title}\n\n🔗 <a href='{link}'>Link</a>"
             process_entry(link, msg, "forex")
             
     except Exception as e:
         print(f"[ERROR] Forex Factory: {e}")
-
 
 # --- ΕΚΤΕΛΕΣΗ ΚΑΙ ΕΛΕΓΧΟΣ ΜΗΝΥΜΑΤΩΝ ---
 current_time = time.time()
