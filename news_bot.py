@@ -65,50 +65,47 @@ def fetch_bloomberg():
         process_entry(entry.link, msg, "bloomberg")
 
 def fetch_cnbc():
-    # Χρησιμοποιούμε το RSS ID 15839069 (Latest News)
-    feed = feedparser.parse("https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=15839069")
+    # 1. Σίγουρη λήψη των άρθρων μέσω Google News για να μην μπλοκαριστεί το RSS
+    feed = feedparser.parse("https://news.google.com/rss/search?q=site:cnbc.com+when:1h&hl=en-US&gl=US&ceid=US:en")
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"}
     
     for entry in reversed(feed.entries[:15]):
+        # Καθαρισμός του τίτλου της Google
+        title = html.escape(entry.title.rsplit(" - CNBC", 1)[0].strip())
         link = entry.link
+        
         if link in seen_entries:
             continue
             
-        title = html.escape(entry.title.strip())
-        
-        # Default περίληψη αν κάτι πάει στραβά
-        summary = html.escape(clean_html(entry.get("summary", "")))
-        if len(summary) > 250: summary = summary[:247] + "..."
-        key_points_text = f"• <i>{summary}</i>"
+        # Αρχικό κενό κείμενο για τα Key Points
+        key_points_text = ""
         
         try:
+            # 2. Προσπάθεια να μπούμε στο άρθρο για τα Key Points
             res = requests.get(link, headers=headers, timeout=15)
             if res.status_code == 200:
                 soup = BeautifulSoup(res.text, "html.parser")
-                
                 bullets = []
-                # Ψάχνουμε ΟΛΑ τα containers που περιέχουν τη λέξη KeyPoints 
                 key_points_containers = soup.find_all(class_=re.compile("KeyPoints", re.IGNORECASE))
                 
                 for container in key_points_containers:
                     items = container.find_all("li")
                     for item in items:
                         safe_text = html.escape(item.get_text(strip=True))
-                        # Προσθήκη μόνο αν δεν είναι κενό και δεν έχει ήδη μπει (αποφυγή διπλότυπων)
                         formatted_bullet = f"• <i>{safe_text}</i>"
                         if safe_text and formatted_bullet not in bullets:
                             bullets.append(formatted_bullet)
                 
-                # Αν βρήκε τα Key Points, τα βάζει όλα
+                # Αν βρήκε τα Key Points, τα προσθέτει
                 if bullets:
-                    key_points_text = "\n".join(bullets)
-                    
-        except Exception as e:
-            print(f"[WARNING] CNBC Scraping failed for {link}: {e}")
+                    key_points_text = "\n\n" + "\n".join(bullets)
+        except Exception:
+            pass # Αν φάμε πόρτα από το Cloudflare, προχωράμε σιωπηλά
 
-        # Αποστολή μηνύματος με ΟΛΑ τα Key points και το Link στο τέλος
-        msg = f"<b>CNBC</b>\n📌 <b>{title}</b>\n\n{key_points_text}\n\n🔗 <a href='{link}'>Link</a>"
+        # 3. Αποστολή (με ή χωρίς τα Key Points, αλλά ΠΑΝΤΑ με τον τίτλο και το Link)
+        msg = f"<b>CNBC</b>\n📌 <b>{title}</b>{key_points_text}\n\n🔗 <a href='{link}'>Link</a>"
         process_entry(link, msg, "cnbc")
+        
 def fetch_capital():
     # Παράκαμψη του firewall χρησιμοποιώντας το Google News
     rss_url = "https://news.google.com/rss/search?q=site:capital.gr+when:1h&hl=el&gl=GR&ceid=GR:el"
