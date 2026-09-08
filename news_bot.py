@@ -96,17 +96,21 @@ def fetch_cnbc():
             pass
 
 def fetch_capital():
-    # Παράκαμψη του firewall χρησιμοποιώντας το Google News για τα νέα του Capital.gr
-    rss_url = "https://news.google.com/rss/search?q=site:capital.gr+when:1h&hl=el&gl=GR&ceid=GR:el"
-    feed = feedparser.parse(rss_url)
-    
-    for entry in reversed(feed.entries[:10]):
-        # Καθαρισμός του τίτλου από το " - Capital.gr" που προσθέτει αυτόματα το Google
-        title = entry.title.rsplit(" - Capital.gr", 1)[0].rsplit(" - capital.gr", 1)[0].strip()
-        title = html.escape(title)
+    # Χρησιμοποιούμε έναν δωρεάν proxy (AllOrigins) για να ξεγελάσουμε το firewall
+    # και να τραβήξουμε απευθείας τη "Ροή Ειδήσεων" (RSS) χωρίς να κοπεί το GitHub.
+    proxy_url = "https://api.allorigins.win/raw?url=https://www.capital.gr/rss"
+    try:
+        # Βάλαμε λίγο μεγαλύτερο timeout επειδή μεσολαβεί ο proxy
+        res = requests.get(proxy_url, timeout=20)
+        feed = feedparser.parse(res.content)
         
-        msg = f"<b>Capital.gr</b>\n📌 {title}\n🔗 <a href='{entry.link}'>Link</a>"
-        process_entry(entry.link, msg, "capital")
+        # Ελέγχουμε τα 15 (αντί για 10) πιο πρόσφατα για να μη χάσουμε καμία γρήγορη είδηση του 30λέπτου
+        for entry in reversed(feed.entries[:15]):
+            title = html.escape(entry.title.strip())
+            msg = f"<b>Capital.gr</b>\n📌 {title}\n🔗 <a href='{entry.link}'>Link</a>"
+            process_entry(entry.link, msg, "capital")
+    except Exception as e:
+        print(f"[ERROR] Capital.gr: {e}")
 
 def fetch_forex_factory():
     url = "https://www.forexfactory.com/news/hot"
