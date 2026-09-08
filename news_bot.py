@@ -146,7 +146,7 @@ def fetch_forex_factory():
 current_time = time.time()
 
 # 0. Αρχικό Μήνυμα Ενημέρωσης
-send_telegram("-------ΝΕΑ ΕΠΙΚΑΙΡΟΤΗΤΑ------")
+send_telegram("------- ΝΕΑ ΕΠΙΚΑΙΡΟΤΗΤΑ -------")
 
 # 1. Bloomberg, CNBC, Capital (Ανά 30 λεπτά)
 fetch_bloomberg()
@@ -161,9 +161,9 @@ fetch_capital()
 if new_counts["capital"] == 0:
     send_telegram("ℹ️ Όχι νέα σε Capital.gr")
 
-# 2. Forex Factory (Ανά 2 ώρες)
+# 2. Forex Factory (Ανά 1 ώρα)
 forex_checked = False
-if current_time - timers.get("forex", 0) >= 7100:
+if current_time - timers.get("forex", 0) >= 3550:
     forex_checked = True
     fetch_forex_factory()
     timers["forex"] = current_time
