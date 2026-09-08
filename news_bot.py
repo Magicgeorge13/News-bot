@@ -172,7 +172,7 @@ if new_counts["capital"] == 0:
 
 # 2. Forex Factory (Ανά 1 ώρα = 3500 δευτερόλεπτα)
 forex_checked = False
-if current_time - timers.get("forex", 0) == 0:
+if current_time - timers.get("forex", 0) >= 3500:
     forex_checked = True
     fetch_forex_factory()
     timers["forex"] = current_time
