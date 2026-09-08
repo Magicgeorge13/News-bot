@@ -95,11 +95,18 @@ def fetch_cnbc():
             pass
 
 def fetch_capital():
-    feed = feedparser.parse("https://www.capital.gr/rss")
-    for entry in reversed(feed.entries[:10]):
-        title = html.escape(entry.title.strip())
-        msg = f"<b>Capital.gr</b>\n📌 {title}\n🔗 <a href='{entry.link}'>Link</a>"
-        process_entry(entry.link, msg)
+    # Μεταμφίεση του bot σε κανονικό browser για να περάσει το firewall του Capital.gr
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"}
+    try:
+        res = requests.get("https://www.capital.gr/rss", headers=headers, timeout=15)
+        feed = feedparser.parse(res.content) # Περνάμε το περιεχόμενο στο feedparser
+        
+        for entry in reversed(feed.entries[:10]):
+            title = html.escape(entry.title.strip())
+            msg = f"<b>Capital.gr</b>\n📌 {title}\n🔗 <a href='{entry.link}'>Link</a>"
+            process_entry(entry.link, msg)
+    except Exception as e:
+        print(f"[ERROR] Capital.gr: {e}")
 
 def fetch_forex_factory():
     url = "https://www.forexfactory.com/news/hot"
