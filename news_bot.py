@@ -111,13 +111,18 @@ def fetch_cnbc():
         msg = f"<b>CNBC</b>\n📌 <b>{title}</b>\n\n{key_points_text}\n\n🔗 <a href='{link}'>Link</a>"
         process_entry(link, msg, "cnbc")
 def fetch_capital():
-    # Παράκαμψη του firewall χρησιμοποιώντας το Google News για τα νέα του Capital.gr
+    # Παράκαμψη του firewall χρησιμοποιώντας το Google News
     rss_url = "https://news.google.com/rss/search?q=site:capital.gr+when:1h&hl=el&gl=GR&ceid=GR:el"
     feed = feedparser.parse(rss_url)
     
-    for entry in reversed(feed.entries[:10]):
-        # Καθαρισμός του τίτλου 
+    for entry in reversed(feed.entries[:15]):
+        # Καθαρισμός του τίτλου από τις ετικέτες του Google
         title = entry.title.rsplit(" - Capital.gr", 1)[0].rsplit(" - capital.gr", 1)[0].strip()
+        
+        # ΦΙΛΤΡΟ: Αν ο τίτλος μιλάει για απλές τιμές μετοχών, τον προσπερνάμε!
+        if "τιμές μετοχής" in title.lower() or "τιμες μετοχης" in title.lower():
+            continue
+            
         title = html.escape(title)
         
         msg = f"<b>Capital.gr</b>\n📌 {title}\n🔗 <a href='{entry.link}'>Link</a>"
