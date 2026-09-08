@@ -62,38 +62,47 @@ def fetch_bloomberg():
         process_entry(entry.link, msg, "bloomberg")
 
 def fetch_cnbc():
-    feed = feedparser.parse("https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664")
-    headers = {"User-Agent": "Mozilla/5.0"}
+    # Χρησιμοποιούμε το RSS ID 15839069 που είναι το κεντρικό "Latest News" του CNBC
+    feed = feedparser.parse("https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=15839069")
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"}
     
-    for entry in reversed(feed.entries[:10]):
+    # Αυξάνουμε στα 15 άρθρα για να μην χάσουμε κάτι σε γρήγορη ροή
+    for entry in reversed(feed.entries[:15]):
         link = entry.link
         if link in seen_entries:
             continue
             
         title = html.escape(entry.title.strip())
+        
+        # Φτιάχνουμε μια "default" περίληψη από το RSS. 
+        # Έτσι, αν κάτι πάει στραβά με τα Key Points, θα σου στείλει αυτήν αντί να μη στείλει τίποτα!
+        summary = html.escape(clean_html(entry.get("summary", "")))
+        if len(summary) > 250: summary = summary[:247] + "..."
+        key_points_text = f"• <i>{summary}</i>"
+        
         try:
             res = requests.get(link, headers=headers, timeout=15)
-            soup = BeautifulSoup(res.text, "html.parser")
-            key_points_container = soup.find(class_=re.compile("KeyPoints", re.IGNORECASE))
-            bullets = []
-            
-            if key_points_container:
-                items = key_points_container.find_all("li")
-                for item in items:
-                    safe_text = html.escape(item.get_text(strip=True))
-                    bullets.append(f"• <i>{safe_text}</i>")
-            
-            if bullets:
-                key_points_text = "\n".join(bullets)
-            else:
-                summary = html.escape(clean_html(entry.get("summary", "")))
-                if len(summary) > 250: summary = summary[:247] + "..."
-                key_points_text = f"• <i>{summary}</i>"
+            if res.status_code == 200:
+                soup = BeautifulSoup(res.text, "html.parser")
+                key_points_container = soup.find(class_=re.compile("KeyPoints", re.IGNORECASE))
+                bullets = []
+                
+                if key_points_container:
+                    items = key_points_container.find_all("li")
+                    for item in items:
+                        safe_text = html.escape(item.get_text(strip=True))
+                        bullets.append(f"• <i>{safe_text}</i>")
+                
+                # Αν βρήκε Key Points, αντικαθιστά την default περίληψη με αυτά
+                if bullets:
+                    key_points_text = "\n".join(bullets)
+        except Exception as e:
+            # Αν σκάσει (π.χ. timeout), απλά το καταγράφει αλλά ΣΥΝΕΧΙΖΕΙ κανονικά
+            print(f"[WARNING] CNBC Scraping failed for {link}: {e}")
 
-            msg = f"<b>CNBC</b>\n📌 <b>{title}</b>\n\n{key_points_text}"
-            process_entry(link, msg, "cnbc")
-        except Exception:
-            pass
+        # Αποστολή του μηνύματος ότι κι αν έχει συμβεί
+        msg = f"<b>CNBC</b>\n📌 <b>{title}</b>\n\n{key_points_text}"
+        process_entry(link, msg, "cnbc")
 
 def fetch_capital():
     # Παράκαμψη του firewall χρησιμοποιώντας το Google News για τα νέα του Capital.gr
