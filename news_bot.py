@@ -96,19 +96,23 @@ def fetch_cnbc():
             pass
 
 def fetch_capital():
-    # Χρησιμοποιούμε έναν δωρεάν proxy (AllOrigins) για να ξεγελάσουμε το firewall
-    # και να τραβήξουμε απευθείας τη "Ροή Ειδήσεων" (RSS) χωρίς να κοπεί το GitHub.
-    proxy_url = "https://api.allorigins.win/raw?url=https://www.capital.gr/rss"
+    # Χρήση του rss2json API που ξεπερνάει τα firewalls και μας δίνει την αυθεντική ροή
+    api_url = "https://api.rss2json.com/v1/api.json?rss_url=https://www.capital.gr/rss"
     try:
-        # Βάλαμε λίγο μεγαλύτερο timeout επειδή μεσολαβεί ο proxy
-        res = requests.get(proxy_url, timeout=20)
-        feed = feedparser.parse(res.content)
+        res = requests.get(api_url, timeout=15)
+        data = res.json()
         
-        # Ελέγχουμε τα 15 (αντί για 10) πιο πρόσφατα για να μη χάσουμε καμία γρήγορη είδηση του 30λέπτου
-        for entry in reversed(feed.entries[:15]):
-            title = html.escape(entry.title.strip())
-            msg = f"<b>Capital.gr</b>\n📌 {title}\n🔗 <a href='{entry.link}'>Link</a>"
-            process_entry(entry.link, msg, "capital")
+        if data.get("status") == "ok":
+            items = data.get("items", [])
+            # Ελέγχουμε τις 15 πιο πρόσφατες γρήγορες ειδήσεις
+            for entry in reversed(items[:15]):
+                title = html.escape(entry.get("title", "").strip())
+                link = entry.get("link", "")
+                
+                msg = f"<b>Capital.gr</b>\n📌 {title}\n🔗 <a href='{link}'>Link</a>"
+                process_entry(link, msg, "capital")
+        else:
+            print(f"[ERROR] Capital.gr API: {data.get('message')}")
     except Exception as e:
         print(f"[ERROR] Capital.gr: {e}")
 
