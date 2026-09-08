@@ -14,27 +14,31 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 SEEN_FILE = "seen.txt"
 TIMERS_FILE = "timers.json"
 
-# Φόρτωση μνήμης (για να μην στέλνει τα ίδια)
+# Φόρτωση μνήμης 
 if os.path.exists(SEEN_FILE):
     with open(SEEN_FILE, "r", encoding="utf-8") as f:
         seen_entries = set(f.read().splitlines())
 else:
     seen_entries = set()
 
-# Φόρτωση χρονομέτρων
+# Φόρτωση χρονομέτρων (Πλέον το χρειαζόμαστε μόνο για το Forex)
 if os.path.exists(TIMERS_FILE):
     with open(TIMERS_FILE, "r", encoding="utf-8") as f:
         timers = json.load(f)
 else:
-    timers = {"capital": 0, "forex": 0}
+    timers = {"forex": 0}
 
 new_data_saved = False
+
+# Μετρητής για το αν βρέθηκαν νέα σε αυτό το run
+new_counts = {"bloomberg": 0, "cnbc": 0, "capital": 0, "forex": 0}
 
 def send_telegram(text: str):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {"chat_id": TELEGRAM_CHAT_ID, "text": text, "parse_mode": "HTML"}
     try:
         requests.post(url, json=payload, timeout=10)
+        time.sleep(0.5) # Μικρή παύση για να μην μας μπλοκάρει το Telegram από το σπαμ
     except Exception as e:
         print(f"[ERROR] Telegram: {e}")
 
@@ -42,11 +46,12 @@ def clean_html(raw_html: str) -> str:
     clean_text = re.sub(r"<.*?>", "", raw_html)
     return html.unescape(clean_text).strip()
 
-def process_entry(unique_id, msg):
+def process_entry(unique_id, msg, source):
     global new_data_saved
     if unique_id not in seen_entries:
         seen_entries.add(unique_id)
         new_data_saved = True
+        new_counts[source] += 1  # Καταγράφει ότι βρέθηκε νέο άρθρο
         send_telegram(msg)
 
 def fetch_bloomberg():
@@ -54,7 +59,7 @@ def fetch_bloomberg():
     for entry in reversed(feed.entries[:10]):
         title = html.escape(entry.title.rsplit(" - Bloomberg", 1)[0].strip())
         msg = f"<b>Bloomberg</b>\n📌 {title}\n🔗 <a href='{entry.link}'>Link</a>"
-        process_entry(entry.link, msg)
+        process_entry(entry.link, msg, "bloomberg")
 
 def fetch_cnbc():
     feed = feedparser.parse("https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664")
@@ -66,11 +71,9 @@ def fetch_cnbc():
             continue
             
         title = html.escape(entry.title.strip())
-        
         try:
             res = requests.get(link, headers=headers, timeout=15)
             soup = BeautifulSoup(res.text, "html.parser")
-            
             key_points_container = soup.find(class_=re.compile("KeyPoints", re.IGNORECASE))
             bullets = []
             
@@ -87,26 +90,23 @@ def fetch_cnbc():
                 if len(summary) > 250: summary = summary[:247] + "..."
                 key_points_text = f"• <i>{summary}</i>"
 
-            # Εδώ αποστέλλεται το CNBC ΧΩΡΙΣ link (μόνο τίτλος & περίληψη)
             msg = f"<b>CNBC</b>\n📌 <b>{title}</b>\n\n{key_points_text}"
-            process_entry(link, msg)
-            
+            process_entry(link, msg, "cnbc")
         except Exception:
             pass
 
 def fetch_capital():
-    # Μεταμφίεση του bot σε κανονικό browser για να περάσει το firewall του Capital.gr
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"}
     try:
         res = requests.get("https://www.capital.gr/rss", headers=headers, timeout=15)
-        feed = feedparser.parse(res.content) # Περνάμε το περιεχόμενο στο feedparser
+        feed = feedparser.parse(res.content)
         
         for entry in reversed(feed.entries[:10]):
             title = html.escape(entry.title.strip())
             msg = f"<b>Capital.gr</b>\n📌 {title}\n🔗 <a href='{entry.link}'>Link</a>"
-            process_entry(entry.link, msg)
-    except Exception as e:
-        print(f"[ERROR] Capital.gr: {e}")
+            process_entry(entry.link, msg, "capital")
+    except Exception:
+        pass
 
 def fetch_forex_factory():
     url = "https://www.forexfactory.com/news/hot"
@@ -125,29 +125,38 @@ def fetch_forex_factory():
                 
         for link, title in reversed(list(unique_links.items())[:10]):
             msg = f"🔴 <b>Forex Factory (Hot News)</b>\n📌 {title}\n🔗 <a href='{link}'>Link</a>"
-            process_entry(link, msg)
+            process_entry(link, msg, "forex")
     except Exception:
         pass
 
 
-# --- ΕΛΕΓΧΟΣ ΧΡΟΝΩΝ ---
+# --- ΕΚΤΕΛΕΣΗ ΚΑΙ ΕΛΕΓΧΟΣ ΜΗΝΥΜΑΤΩΝ ---
 current_time = time.time()
 
-# 1. Bloomberg & CNBC: Τρέχουν πάντα σε κάθε κύκλο (ανά 30 λεπτά)
+# 1. Bloomberg, CNBC, Capital (Ανά 30 λεπτά - τρέχουν σε κάθε κύκλο)
 fetch_bloomberg()
+if new_counts["bloomberg"] == 0:
+    send_telegram("ℹ️ Όχι νέα σε Bloomberg")
+
 fetch_cnbc()
+if new_counts["cnbc"] == 0:
+    send_telegram("ℹ️ Όχι νέα σε CNBC")
 
-# 2. Capital.gr: Τρέχει ΜΟΝΟ αν έχει περάσει 1 ώρα (3500 δευτερόλεπτα)
-if current_time - timers.get("capital", 0) >= 3500:
-    fetch_capital()
-    timers["capital"] = current_time
-    new_data_saved = True
+fetch_capital()
+if new_counts["capital"] == 0:
+    send_telegram("ℹ️ Όχι νέα σε Capital.gr")
 
-# 3. Forex Factory: Τρέχει ΜΟΝΟ αν έχουν περάσει 2 ώρες (7100 δευτερόλεπτα)
+# 2. Forex Factory (Τρέχει ΜΟΝΟ αν έχουν περάσει 2 ώρες)
+forex_checked = False
 if current_time - timers.get("forex", 0) >= 7100:
+    forex_checked = True
     fetch_forex_factory()
     timers["forex"] = current_time
     new_data_saved = True
+
+# Αν ελέγχθηκε το Forex Factory και δεν είχε νέα, στείλε ειδοποίηση
+if forex_checked and new_counts["forex"] == 0:
+    send_telegram("ℹ️ Όχι νέα σε Forex Factory")
 
 
 # --- ΑΠΟΘΗΚΕΥΣΗ ΜΝΗΜΗΣ & ΧΡΟΝΟΜΕΤΡΩΝ ---
