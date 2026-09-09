@@ -71,7 +71,7 @@ def fetch_capital():
 
 def fetch_mononews():
     # Παράκαμψη firewalls χρησιμοποιώντας το Google News
-   rss_url = "https://news.google.com/rss/search?q=site:mononews.gr+when:1h&hl=el&gl=GR&ceid=GR:el"
+   rss_url = "https://news.google.com/rss/search?q=site:mononews.gr+when:1d&hl=el&gl=GR&ceid=GR:el"
     feed = feedparser.parse(rss_url)
     
     for entry in reversed(feed.entries[:15]):
