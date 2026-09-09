@@ -74,7 +74,7 @@ def fetch_mononews():
    rss_url = "https://news.google.com/rss/search?q=site:mononews.gr+when:1d&hl=el&gl=GR&ceid=GR:el"
    feed = feedparser.parse(rss_url)
     
-    for entry in reversed(feed.entries[:15]):
+        for entry in reversed(feed.entries[:15]):
         # Καθαρίζουμε τον τίτλο από την "ουρά" που βάζει η Google
         title = entry.title.rsplit(" - mononews", 1)[0].rsplit(" - Mononews", 1)[0].strip()
         title = html.escape(title)
