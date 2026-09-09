@@ -20,7 +20,7 @@ else:
     seen_entries = set()
 
 new_data_saved = False
-new_counts = {"bloomberg": 0, "cnbc": 0, "capital": 0, "mononews": 0}
+new_counts = {"bloomberg": 0, "capital": 0, "mononews": 0}
 
 def send_telegram(text: str):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
@@ -54,53 +54,6 @@ def fetch_bloomberg():
         title = html.escape(entry.title.rsplit(" - Bloomberg", 1)[0].strip())
         msg = f"<b>Bloomberg</b>\n📌 {title}\n🔗 <a href='{entry.link}'>Link</a>"
         process_entry(entry.link, msg, "bloomberg")
-
-def fetch_cnbc():
-    timestamp = int(time.time())
-    rss_url = "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=15839069"
-    proxy_url = f"https://api.allorigins.win/raw?url={rss_url}&_={timestamp}"
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"}
-    
-    try:
-        res = requests.get(proxy_url, headers=headers, timeout=20)
-        feed = feedparser.parse(res.content)
-    except Exception as e:
-        print(f"[ERROR] CNBC Proxy Fetch: {e}")
-        return
-        
-    for entry in reversed(feed.entries[:15]):
-        link = entry.link
-        if link in seen_entries:
-            continue
-            
-        title = html.escape(entry.title.strip())
-        
-        summary = html.escape(clean_html(entry.get("summary", "")))
-        if len(summary) > 250: summary = summary[:247] + "..."
-        key_points_text = f"• <i>{summary}</i>"
-        
-        try:
-            article_res = requests.get(link, headers=headers, timeout=15)
-            if article_res.status_code == 200:
-                soup = BeautifulSoup(article_res.text, "html.parser")
-                bullets = []
-                key_points_containers = soup.find_all(class_=re.compile("KeyPoints", re.IGNORECASE))
-                
-                for container in key_points_containers:
-                    items = container.find_all("li")
-                    for item in items:
-                        safe_text = html.escape(item.get_text(strip=True))
-                        formatted_bullet = f"• <i>{safe_text}</i>"
-                        if safe_text and formatted_bullet not in bullets:
-                            bullets.append(formatted_bullet)
-                
-                if bullets:
-                    key_points_text = "\n".join(bullets)
-        except Exception:
-            pass 
-
-        msg = f"<b>CNBC</b>\n📌 <b>{title}</b>\n\n{key_points_text}\n\n🔗 <a href='{link}'>Link</a>"
-        process_entry(link, msg, "cnbc")
 
 def fetch_capital():
     rss_url = "https://news.google.com/rss/search?q=site:capital.gr+when:1h&hl=el&gl=GR&ceid=GR:el"
@@ -138,10 +91,6 @@ send_telegram("🚨 <b><u>ΝΕΑ ΕΠΙΚΑΙΡΟΤΗΤΑ</u></b> 🚨")
 fetch_bloomberg()
 if new_counts["bloomberg"] == 0:
     send_telegram("ℹ️ Όχι νέα σε Bloomberg")
-
-fetch_cnbc()
-if new_counts["cnbc"] == 0:
-    send_telegram("ℹ️ Όχι νέα σε CNBC")
 
 fetch_capital()
 if new_counts["capital"] == 0:
