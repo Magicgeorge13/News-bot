@@ -20,7 +20,7 @@ else:
     seen_entries = set()
 
 new_data_saved = False
-new_counts = {"bloomberg": 0, "cnbc": 0, "capital": 0, "euro2day": 0}
+new_counts = {"bloomberg": 0, "cnbc": 0, "capital": 0, "mononews": 0}
 
 def send_telegram(text: str):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
@@ -116,16 +116,18 @@ def fetch_capital():
         msg = f"<b>Capital.gr</b>\n📌 {title}\n🔗 <a href='{entry.link}'>Link</a>"
         process_entry(entry.link, msg, "capital")
 
-def fetch_euro2day():
-    rss_url = "https://news.google.com/rss/search?q=site:euro2day.gr+when:1d&hl=el&gl=GR&ceid=GR:el"
+def fetch_mononews():
+    # Παράκαμψη firewalls χρησιμοποιώντας το Google News
+    rss_url = "https://news.google.com/rss/search?q=site:mononews.gr+when:1d&hl=el&gl=GR&ceid=GR:el"
     feed = feedparser.parse(rss_url)
     
     for entry in reversed(feed.entries[:15]):
-        title = entry.title.rsplit(" - Euro2day", 1)[0].rsplit(" - euro2day.gr", 1)[0].strip()
+        # Καθαρίζουμε τον τίτλο από την "ουρά" που βάζει η Google
+        title = entry.title.rsplit(" - mononews", 1)[0].rsplit(" - Mononews", 1)[0].strip()
         title = html.escape(title)
         
-        msg = f"<b>Euro2day.gr</b>\n📌 {title}\n🔗 <a href='{entry.link}'>Link</a>"
-        process_entry(entry.link, msg, "euro2day")
+        msg = f"<b>Mononews.gr</b>\n📌 {title}\n🔗 <a href='{entry.link}'>Link</a>"
+        process_entry(entry.link, msg, "mononews")
 
 
 # --- ΕΚΤΕΛΕΣΗ ΚΑΙ ΕΛΕΓΧΟΣ ΜΗΝΥΜΑΤΩΝ ---
@@ -145,9 +147,9 @@ fetch_capital()
 if new_counts["capital"] == 0:
     send_telegram("ℹ️ Όχι νέα σε Capital.gr")
 
-fetch_euro2day()
-if new_counts["euro2day"] == 0:
-    send_telegram("ℹ️ Όχι νέα σε Euro2day")
+fetch_mononews()
+if new_counts["mononews"] == 0:
+    send_telegram("ℹ️ Όχι νέα σε Mononews.gr")
 
 # --- ΑΠΟΘΗΚΕΥΣΗ ΜΝΗΜΗΣ ---
 if new_data_saved:
