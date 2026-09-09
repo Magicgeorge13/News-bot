@@ -152,7 +152,7 @@ def fetch_euro2day():
 current_time = time.time()
 
 # 0. Αρχικό Μήνυμα Ενημέρωσης
-send_telegram("🚨 <b><u>ΝΕΑ ΕΠΙΚΑΙΡΟΤΗΤΑ</u></b> 🚨")
+send_telegram("🚨 <b><u>---ΝΕΑ ΕΠΙΚΑΙΡΟΤΗΤΑ---</u></b> 🚨")
 
 # 1. Bloomberg, CNBC, Capital (Ανά 30 λεπτά)
 fetch_bloomberg()
