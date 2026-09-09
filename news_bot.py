@@ -1,10 +1,8 @@
 import html
-import re
 import os
 import time
 import feedparser
 import requests
-from bs4 import BeautifulSoup
 
 # Παίρνει τους κωδικούς από τα Secrets
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
@@ -36,10 +34,6 @@ def send_telegram(text: str):
     except Exception as e:
         print(f"[ERROR] Telegram: {e}")
 
-def clean_html(raw_html: str) -> str:
-    clean_text = re.sub(r"<.*?>", "", raw_html)
-    return html.unescape(clean_text).strip()
-
 def process_entry(unique_id, msg, source):
     global new_data_saved
     if unique_id not in seen_entries:
@@ -62,6 +56,7 @@ def fetch_capital():
     for entry in reversed(feed.entries[:15]):
         title = entry.title.rsplit(" - Capital.gr", 1)[0].rsplit(" - capital.gr", 1)[0].strip()
         
+        # Φίλτρο για να μην παίρνουμε τις σκέτες "τιμές μετοχής"
         if "τιμές μετοχής" in title.lower() or "τιμες μετοχης" in title.lower():
             continue
             
@@ -70,12 +65,10 @@ def fetch_capital():
         process_entry(entry.link, msg, "capital")
 
 def fetch_mononews():
-    # Παράκαμψη firewalls χρησιμοποιώντας το Google News
-   rss_url = "https://news.google.com/rss/search?q=site:mononews.gr+when:1d&hl=el&gl=GR&ceid=GR:el"
-   feed = feedparser.parse(rss_url)
+    rss_url = "https://news.google.com/rss/search?q=site:mononews.gr+when:1h&hl=el&gl=GR&ceid=GR:el"
+    feed = feedparser.parse(rss_url)
     
-        for entry in reversed(feed.entries[:15]):
-        # Καθαρίζουμε τον τίτλο από την "ουρά" που βάζει η Google
+    for entry in reversed(feed.entries[:15]):
         title = entry.title.rsplit(" - mononews", 1)[0].rsplit(" - Mononews", 1)[0].strip()
         title = html.escape(title)
         
@@ -84,10 +77,8 @@ def fetch_mononews():
 
 
 # --- ΕΚΤΕΛΕΣΗ ΚΑΙ ΕΛΕΓΧΟΣ ΜΗΝΥΜΑΤΩΝ ---
-# 0. Αρχικό Μήνυμα Ενημέρωσης (Έντονο)
 send_telegram("🚨 <b><u>ΝΕΑ ΕΠΙΚΑΙΡΟΤΗΤΑ</u></b> 🚨")
 
-# 1. Έλεγχος των πηγών (ανά 30 λεπτά)
 fetch_bloomberg()
 if new_counts["bloomberg"] == 0:
     send_telegram("ℹ️ Όχι νέα σε Bloomberg")
