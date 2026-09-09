@@ -29,7 +29,7 @@ else:
     timers = {"forex": 0}
 
 new_data_saved = False
-new_counts = {"bloomberg": 0, "cnbc": 0, "capital": 0, "forex": 0}
+new_counts = {"bloomberg": 0, "cnbc": 0, "capital": 0, "euro2day": 0}
 
 def send_telegram(text: str):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
@@ -135,42 +135,24 @@ def fetch_capital():
         msg = f"<b>Capital.gr</b>\n📌 {title}\n🔗 <a href='{entry.link}'>Link</a>"
         process_entry(entry.link, msg, "capital")
 
-def fetch_forex_factory():
-    # Χτυπάμε την κεντρική σελίδα όλων των ειδήσεων μέσω proxy
-    timestamp = int(time.time())
-    url = "https://www.forexfactory.com/news"
-    proxy_url = f"https://api.allorigins.win/raw?url={url}&_={timestamp}"
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"}
+def fetch_euro2day():
+    # Παράκαμψη firewalls χρησιμοποιώντας το Google News
+    rss_url = "https://news.google.com/rss/search?q=site:euro2day.gr+when:1h&hl=el&gl=GR&ceid=GR:el"
+    feed = feedparser.parse(rss_url)
     
-    try:
-        res = requests.get(proxy_url, headers=headers, timeout=20)
-        soup = BeautifulSoup(res.text, "html.parser")
+    for entry in reversed(feed.entries[:15]):
+        # Καθαρισμός του τίτλου
+        title = entry.title.rsplit(" - Euro2day", 1)[0].rsplit(" - euro2day.gr", 1)[0].strip()
+        title = html.escape(title)
         
-        # Ψάχνουμε τα links που οδηγούν στα άρθρα (/news/...)
-        articles = soup.find_all("a", href=re.compile(r"^/news/\d+"))
-        unique_links = {}
-        
-        for a in articles:
-            link = "https://www.forexfactory.com" + a['href']
-            title = html.escape(a.get_text(strip=True))
-            
-            # Αγνοούμε κενά ή τα links των σχολίων
-            if title and len(title) > 10 and "comments" not in title.lower():
-                unique_links[link] = title
-                
-        # Ελέγχουμε τα 15 πιο πρόσφατα
-        for link, title in reversed(list(unique_links.items())[:15]):
-            msg = f"🔴 <b>Forex Factory</b>\n📌 {title}\n\n🔗 <a href='{link}'>Link</a>"
-            process_entry(link, msg, "forex")
-            
-    except Exception as e:
-        print(f"[ERROR] Forex Factory: {e}")
+        msg = f"<b>Euro2day.gr</b>\n📌 {title}\n🔗 <a href='{entry.link}'>Link</a>"
+        process_entry(entry.link, msg, "euro2day")
 
 # --- ΕΚΤΕΛΕΣΗ ΚΑΙ ΕΛΕΓΧΟΣ ΜΗΝΥΜΑΤΩΝ ---
 current_time = time.time()
 
 # 0. Αρχικό Μήνυμα Ενημέρωσης
-send_telegram("------- ΝΕΑ ΕΠΙΚΑΙΡΟΤΗΤΑ -------")
+send_telegram("🚨 <b><u>ΝΕΑ ΕΠΙΚΑΙΡΟΤΗΤΑ</u></b> 🚨")
 
 # 1. Bloomberg, CNBC, Capital (Ανά 30 λεπτά)
 fetch_bloomberg()
@@ -185,16 +167,9 @@ fetch_capital()
 if new_counts["capital"] == 0:
     send_telegram("ℹ️ Όχι νέα σε Capital.gr")
 
-# 2. Forex Factory (Ανά 1 ώρα = 3500 δευτερόλεπτα)
-forex_checked = False
-if current_time - timers.get("forex", 0) >= 3500:
-    forex_checked = True
-    fetch_forex_factory()
-    timers["forex"] = current_time
-    new_data_saved = True
-
-if forex_checked and new_counts["forex"] == 0:
-    send_telegram("ℹ️ Όχι νέα σε Forex Factory")
+fetch_euro2day()
+if new_counts["euro2day"] == 0:
+    send_telegram("ℹ️ Όχι νέα σε Euro2day")
 
 # --- ΑΠΟΘΗΚΕΥΣΗ ΜΝΗΜΗΣ & ΧΡΟΝΟΜΕΤΡΩΝ ---
 if new_data_saved:
