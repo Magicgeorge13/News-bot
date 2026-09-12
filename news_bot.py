@@ -46,7 +46,7 @@ def fetch_bloomberg():
     feed = feedparser.parse("https://news.google.com/rss/search?q=site:bloomberg.com+when:1h&hl=en-US&gl=US&ceid=US:en")
     for entry in reversed(feed.entries[:15]):
         title = html.escape(entry.title.rsplit(" - Bloomberg", 1)[0].strip())
-        msg = f"<b>Bloomberg</b>\n📌 {title}\n🔗 <a href='{entry.link}'>Link</a>"
+        msg = f"🌎 <b>#Bloomberg</b>\n━━━━━━━━━━━━━━\n▫️ {title}\n\n🔗 <a href='{entry.link}'>Άρθρο</a>"
         process_entry(entry.link, msg, "bloomberg")
 
 def fetch_capital():
@@ -61,7 +61,7 @@ def fetch_capital():
             continue
             
         title = html.escape(title)
-        msg = f"<b>Capital.gr</b>\n📌 {title}\n🔗 <a href='{entry.link}'>Link</a>"
+        msg = f"🏛️ <b>#Capital</b>\n━━━━━━━━━━━━━━\n▫️ {title}\n\n🔗 <a href='{entry.link}'>Άρθρο</a>"
         process_entry(entry.link, msg, "capital")
 
 def fetch_mononews():
@@ -72,7 +72,7 @@ def fetch_mononews():
         title = entry.title.rsplit(" - mononews", 1)[0].rsplit(" - Mononews", 1)[0].strip()
         title = html.escape(title)
         
-        msg = f"<b>Mononews.gr</b>\n📌 {title}\n🔗 <a href='{entry.link}'>Link</a>"
+        msg = f"📊 <b>#Mononews</b>\n━━━━━━━━━━━━━━\n▫️ {title}\n\n🔗 <a href='{entry.link}'>Άρθρο</a>"
         process_entry(entry.link, msg, "mononews")
 
 
@@ -80,17 +80,18 @@ def fetch_mononews():
 send_telegram("🚨 <b><u>ΝΕΑ ΕΠΙΚΑΙΡΟΤΗΤΑ</u></b> 🚨")
 
 fetch_bloomberg()
-if new_counts["bloomberg"] == 0:
-    send_telegram("ℹ️ Όχι νέα σε Bloomberg")
-
 fetch_capital()
-if new_counts["capital"] == 0:
-    send_telegram("ℹ️ Όχι νέα σε Capital.gr")
-
 fetch_mononews()
-if new_counts["mononews"] == 0:
-    send_telegram("ℹ️ Όχι νέα σε Mononews.gr")
 
+no_news_sources = []
+if new_counts["bloomberg"] == 0: no_news_sources.append("Bloomberg")
+if new_counts["capital"] == 0: no_news_sources.append("Capital")
+if new_counts["mononews"] == 0: no_news_sources.append("Mononews")
+
+if no_news_sources:
+    sources_text = ", ".join(no_news_sources)
+    send_telegram(f"🔕 <i>Χωρίς νέα αυτή την ώρα: {sources_text}</i>")
+    
 # --- ΑΠΟΘΗΚΕΥΣΗ ΜΝΗΜΗΣ ---
 if new_data_saved:
     with open(SEEN_FILE, "w", encoding="utf-8") as f:
