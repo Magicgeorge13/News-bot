@@ -79,18 +79,17 @@ def fetch_mononews():
 # --- ΕΚΤΕΛΕΣΗ ΚΑΙ ΕΛΕΓΧΟΣ ΜΗΝΥΜΑΤΩΝ ---
 send_telegram("🚨 <b><u>ΝΕΑ ΕΠΙΚΑΙΡΟΤΗΤΑ</u></b> 🚨")
 
-fetch_bloomberg()
+ffetch_bloomberg()
+if new_counts["bloomberg"] == 0:
+    send_telegram("🔕 <i>Όχι νέα σε Bloomberg</i>")
+
 fetch_capital()
+if new_counts["capital"] == 0:
+    send_telegram("🔕 <i>Όχι νέα σε Capital.gr</i>")
+
 fetch_mononews()
-
-no_news_sources = []
-if new_counts["bloomberg"] == 0: no_news_sources.append("Bloomberg")
-if new_counts["capital"] == 0: no_news_sources.append("Capital")
-if new_counts["mononews"] == 0: no_news_sources.append("Mononews")
-
-if no_news_sources:
-    sources_text = ", ".join(no_news_sources)
-    send_telegram(f"🔕 <i>Χωρίς νέα αυτή την ώρα: {sources_text}</i>")
+if new_counts["mononews"] == 0:
+    send_telegram("🔕 <i>Όχι νέα σε Mononews.gr</i>")
     
 # --- ΑΠΟΘΗΚΕΥΣΗ ΜΝΗΜΗΣ ---
 if new_data_saved:
