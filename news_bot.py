@@ -46,7 +46,7 @@ def fetch_bloomberg():
     feed = feedparser.parse("https://news.google.com/rss/search?q=site:bloomberg.com+when:1h&hl=en-US&gl=US&ceid=US:en")
     for entry in reversed(feed.entries[:15]):
         title = html.escape(entry.title.rsplit(" - Bloomberg", 1)[0].strip())
-        msg = f"🌎 <b>#Bloomberg</b>\n━━━━━━━━━━━━━━\n▫️ {title}\n\n🔗 <a href='{entry.link}'>Άρθρο</a>"
+       msg = f"🌎 <a href='https://www.bloomberg.com'><b>#Bloomberg</b></a>\n▫️ {title}\n\n🔗 <a href='{entry.link}'>Άρθρο</a>"
         process_entry(entry.link, msg, "bloomberg")
 
 def fetch_capital():
@@ -61,7 +61,7 @@ def fetch_capital():
             continue
             
         title = html.escape(title)
-        msg = f"🏛️ <b>#Capital</b>\n━━━━━━━━━━━━━━\n▫️ {title}\n\n🔗 <a href='{entry.link}'>Άρθρο</a>"
+       msg = f"🏛️ <a href='https://www.capital.gr'><b>#Capital</b></a>\n▫️ {title}\n\n🔗 <a href='{entry.link}'>Άρθρο</a>"
         process_entry(entry.link, msg, "capital")
 
 def fetch_mononews():
@@ -72,7 +72,7 @@ def fetch_mononews():
         title = entry.title.rsplit(" - mononews", 1)[0].rsplit(" - Mononews", 1)[0].strip()
         title = html.escape(title)
         
-        msg = f"📊 <b>#Mononews</b>\n━━━━━━━━━━━━━━\n▫️ {title}\n\n🔗 <a href='{entry.link}'>Άρθρο</a>"
+        msg = f"📊 <a href='https://www.mononews.gr'><b>#Mononews</b></a>\n▫️ {title}\n\n🔗 <a href='{entry.link}'>Άρθρο</a>"
         process_entry(entry.link, msg, "mononews")
 
 
