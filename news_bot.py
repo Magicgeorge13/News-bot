@@ -79,7 +79,7 @@ def fetch_mononews():
 # --- ΕΚΤΕΛΕΣΗ ΚΑΙ ΕΛΕΓΧΟΣ ΜΗΝΥΜΑΤΩΝ ---
 send_telegram("🚨 <b><u>ΝΕΑ ΕΠΙΚΑΙΡΟΤΗΤΑ</u></b> 🚨")
 
-ffetch_bloomberg()
+fetch_bloomberg()
 if new_counts["bloomberg"] == 0:
     send_telegram("🔕 <i>Όχι νέα σε Bloomberg</i>")
 
