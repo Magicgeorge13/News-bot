@@ -95,3 +95,4 @@ if new_counts["mononews"] == 0:
 if new_data_saved:
     with open(SEEN_FILE, "w", encoding="utf-8") as f:
         f.write("\n".join(list(seen_entries)[-500:]))
+ 
