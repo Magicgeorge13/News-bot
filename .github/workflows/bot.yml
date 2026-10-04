@@ -2,7 +2,7 @@ name: News Bot Scheduler
 
 on:
   schedule: 
-    - cron: '13,43 * * * *' 
+    - cron: '*/30 * * * *' 
   workflow_dispatch: # Σου επιτρέπει να το τρέξεις και χειροκίνητα αν θες  
 
 jobs:
